@@ -1,0 +1,376 @@
+Q1
+SELECT EXTRACT(YEAR from SALEDATE) AS saleyear ,EXTRACT(MONTH from SALEDATE) AS salemonth,COUNT(DISTINCT(EXTRACT(DAY from SALEDATE))) AS saledates
+FROM TRNSACT
+GROUP BY saleyear, salemonth
+ORDER BY saleyear ASC,salemonth ASC
+
+Q2
+SELECT sku,SUM(CASE 
+WHEN EXTRACT(MONTH from saledate) = 6 THEN AMT
+ELSE 0
+END) AS sumjun,
+SUM(CASE 
+WHEN EXTRACT(MONTH from saledate) = 7 THEN AMT
+ELSE 0
+END) AS sumjul,
+SUM(CASE 
+WHEN EXTRACT(MONTH from saledate) = 8 THEN AMT
+ELSE 0
+END) AS sumaug,(sumjun+sumjul+sumaug) AS SUMALLL
+
+FROM TRNSACT
+WHERE stype = 'P'
+GROUP BY sku
+ORDER BY SUMALLL DESC;
+
+Q3
+SELECT store,EXTRACT(YEAR from SALEDATE) AS saleyear ,EXTRACT(MONTH from SALEDATE) AS salemonth,COUNT(DISTINCT(EXTRACT(DAY from SALEDATE))) AS saledates
+FROM TRNSACT
+GROUP BY store,saleyear, salemonth
+ORDER BY saledates ASC
+
+
+
+Q4
+
+SELECT t.store,EXTRACT(YEAR from t.SALEDATE) AS saleyear ,EXTRACT(MONTH from t.SALEDATE) AS salemonth,COUNT(DISTINCT(EXTRACT(DAY from t.SALEDATE))) AS saledates,(SUM(t.amt)/saledates) AS ADR
+FROM TRNSACT t
+WHERE stype = 'P' AND NOT(EXTRACT(YEAR from SALEDATE) = 2005 AND EXTRACT(MONTH from SALEDATE)= 8) 
+GROUP BY t.store,saleyear, salemonth
+HAVING saledates >=20
+ORDER BY saledates ASC;
+==============================================
+SELECT store, saleyear , salemonth,saledates,(amt/saledates) AS ADR
+FROM (SELECT t.store,EXTRACT(YEAR from t.SALEDATE) AS saleyear ,EXTRACT(MONTH from t.SALEDATE) AS salemonth,COUNT(DISTINCT(EXTRACT(DAY from t.SALEDATE))) AS saledates,SUM(t.amt) AS amt
+FROM trnsact t
+WHERE stype = 'P' AND NOT(EXTRACT(YEAR from SALEDATE) = 2005 AND EXTRACT(MONTH from SALEDATE)= 8) 
+GROUP BY store,saleyear, salemonth) AS a
+WHERE saledates >=20
+ORDER BY ADR DESC, saleyear ASC,salemonth ASC;
+
+
+Q5
+SELECT perc,SUM(saledates) AS x,SUM(amt) AS y, (y/x) AS ADR
+FROM (SELECT CASE 
+              WHEN s.msa_high>=50 AND s.msa_high<=60 THEN 'LOW'
+              WHEN s.msa_high>60 AND s.msa_high<=70 THEN 'MEDIUM'
+              WHEN s.msa_high>70 THEN 'HIGH'
+              END AS perc,
+         t.store,EXTRACT(YEAR from t.SALEDATE) AS saleyear ,EXTRACT(MONTH from t.SALEDATE) AS salemonth,COUNT(DISTINCT(EXTRACT(DAY from t.SALEDATE))) AS       
+         saledates,SUM(t.amt) AS amt
+         FROM trnsact t, store_msa s
+         WHERE stype = 'P' AND NOT(EXTRACT(YEAR from t.SALEDATE) = 2005 AND EXTRACT(MONTH from t.SALEDATE)= 8) AND t.store = s.store
+         GROUP BY perc,t.store,saleyear, salemonth) AS a
+WHERE saledates >=20
+GROUP BY perc;
+
+Q6
+SELECT perc,SUM(saledates) AS x,SUM(amt) AS y, (y/x) AS ADR,MEDIAN(inc)
+FROM (SELECT CASE 
+              WHEN s.msa_high>=50 AND s.msa_high<=60 THEN 'LOW'
+              WHEN s.msa_high>60 AND s.msa_high<=70 THEN 'MEDIUM'
+              WHEN s.msa_high>70 THEN 'HIGH'
+              END AS perc,
+         t.store,EXTRACT(YEAR from t.SALEDATE) AS saleyear ,EXTRACT(MONTH from t.SALEDATE) AS salemonth,COUNT(DISTINCT(EXTRACT(DAY from t.SALEDATE))) AS       
+         saledates,SUM(t.amt) AS amt,s.msa_income AS inc
+         FROM trnsact t, store_msa s
+         WHERE stype = 'P' AND NOT(EXTRACT(YEAR from t.SALEDATE) = 2005 AND EXTRACT(MONTH from t.SALEDATE)= 8) AND t.store = s.store
+         GROUP BY perc,t.store,saleyear, salemonth,inc) AS a
+WHERE saledates >=20
+GROUP BY perc;
+
+Q7
+SELECT cleaned_sku.sku,brand,StDevSPrice
+FROM skuinfo s JOIN
+(SELECT TOP 1 sku,count(trannum) AS Tran_Count,STDDEV_SAMP(sprice) AS StDevSPrice
+ FROM trnsact
+WHERE stype='p'
+GROUP BY sku 
+HAVING Tran_Count > 100
+ORDER BY StDevSPrice DESC) AS cleaned_sku ON cleaned_sku.sku=s.sku;
+=============================================
+2762683
+HART SCH
+175.8
+===============================================
+
+Q9
+SELECT saleyear , salemonth,SUM(saledates) AS x,SUM(amt) AS y,(y/x) AS ADR
+FROM (SELECT t.store,EXTRACT(YEAR from t.SALEDATE) AS saleyear ,EXTRACT(MONTH from t.SALEDATE) AS salemonth,COUNT(DISTINCT(EXTRACT(DAY from t.SALEDATE))) AS saledates,SUM(t.amt) AS amt
+FROM trnsact t
+WHERE stype = 'P' AND NOT(EXTRACT(YEAR from SALEDATE) = 2005 AND EXTRACT(MONTH from SALEDATE)= 8) 
+GROUP BY store,saleyear, salemonth) AS a
+WHERE saledates >=20
+GROUP BY saleyear , salemonth
+ORDER BY ADR DESC, saleyear ASC,salemonth ASC;
+
+Q10
+SELECT store,state,city,dept,
+SUM(CASE 
+WHEN SALEMONTH = 12 THEN ADR
+ELSE 0
+END) AS tweADR,
+SUM(CASE 
+WHEN SALEMONTH = 11 THEN ADR
+ELSE 0
+END) AS eleADR,((tweADR-eleADR)/eleADR) AS GIA
+FROM (SELECT store,state,city,dept, salemonth,SUM(saledates) AS x,SUM(amt) AS y,(y/x) AS ADR
+FROM (SELECT t.store,st.state,st.city,sk.dept,EXTRACT(YEAR from t.SALEDATE) AS saleyear ,EXTRACT(MONTH from t.SALEDATE) AS salemonth,COUNT(DISTINCT(EXTRACT(DAY from t.SALEDATE))) AS saledates,SUM(t.amt) AS amt
+FROM trnsact t,skuinfo sk,store_msa st
+WHERE stype = 'P' AND NOT(EXTRACT(YEAR from SALEDATE) = 2005 AND EXTRACT(MONTH from SALEDATE)= 8)
+AND t.store = st.store
+AND t.sku = sk.sku 
+GROUP BY t.store,st.state,st.city,sk.dept,saleyear, salemonth) AS a
+WHERE saledates >=20 AND (SALEMONTH = 12 OR SALEMONTH = 11)
+GROUP BY store,state,city,dept, salemonth) AS b
+GROUP BY store,state,city,dept
+ORDER BY GIA desc
+HAVING eleADR > 0
+
+Q11
+SELECT store,state,city,
+SUM(CASE 
+WHEN SALEMONTH = 9 THEN ADR
+ELSE 0
+END) AS ninADR,
+SUM(CASE 
+WHEN SALEMONTH = 8 THEN ADR
+ELSE 0
+END) AS eigADR,((ninADR-eigADR)/eigADR) AS GIA
+FROM (SELECT store,state,city, salemonth,SUM(saledates) AS x,SUM(amt) AS y,(y/x) AS ADR
+FROM (SELECT t.store,st.state,st.city,EXTRACT(YEAR from t.SALEDATE) AS saleyear ,EXTRACT(MONTH from t.SALEDATE) AS salemonth,COUNT(DISTINCT(EXTRACT(DAY from t.SALEDATE))) AS saledates,SUM(t.amt) AS amt
+FROM trnsact t,store_msa st
+WHERE stype = 'P' AND NOT(EXTRACT(YEAR from SALEDATE) = 2005 AND EXTRACT(MONTH from SALEDATE)= 8)
+AND t.store = st.store
+GROUP BY t.store,st.state,st.city,saleyear, salemonth) AS a
+WHERE saledates >=20 AND (SALEMONTH = 8 OR SALEMONTH = 9)
+GROUP BY store,state,city, salemonth) AS b
+GROUP BY store,state,city
+HAVING eigADR> 0 AND ninADR > 0
+ORDER BY GIA ASC
+
+Q12
+SELECT store, salemonth,SUM(saledates) AS x,SUM(amt) AS y,(y/x) AS ADR,ROW_NUMBER() OVER (PARTITION BY store ORDER BY ADR DESC ) AS ORD
+FROM (SELECT t.store,EXTRACT(YEAR from t.SALEDATE) AS saleyear ,EXTRACT(MONTH from t.SALEDATE) AS salemonth,COUNT(DISTINCT(EXTRACT(DAY from t.SALEDATE))) AS saledates,SUM(t.amt) AS amt
+FROM trnsact t
+WHERE stype = 'P' AND NOT(EXTRACT(YEAR from SALEDATE) = 2005 AND EXTRACT(MONTH from SALEDATE)= 8) 
+GROUP BY store,saleyear, salemonth) AS a
+WHERE saledates >=20
+GROUP BY store,salemonth
+QUALIFY ORD = 1
+ORDER BY store DESC,ADR DESC
+=======================================================
+SELECT salemonth, COUNT(AVORD),COUNT(TOTORD)
+FROM(SELECT store, salemonth,SUM(saledates) AS x,SUM(amt) AS y,(y/x) AS ADR,ROW_NUMBER() OVER (PARTITION BY store ORDER BY ADR ASC) AS AVORD,
+     ROW_NUMBER() OVER (PARTITION BY store ORDER BY y ASC) AS TOTORD
+FROM (SELECT t.store,EXTRACT(YEAR from t.SALEDATE) AS saleyear ,EXTRACT(MONTH from t.SALEDATE) AS salemonth,COUNT(DISTINCT(EXTRACT(DAY from t.SALEDATE))) AS saledates,SUM(t.amt) AS amt
+FROM trnsact t
+WHERE stype = 'P' AND NOT(EXTRACT(YEAR from SALEDATE) = 2005 AND EXTRACT(MONTH from SALEDATE)= 8) 
+GROUP BY store,saleyear, salemonth) AS a
+WHERE saledates >=20
+GROUP BY store,salemonth
+QUALIFY AVORD= 1 OR TOTORD =1) AS b
+GROUP BY salemonth
+
+Q2 How many distinct skus have the brand “Polo fas”, and are either size “XXL” or “black” in color?
+SELECT COUNT(DISTINCT(sku))
+FROM skuinfo
+WHERE brand = 'Polo fas'
+AND (size = 'XXL' OR color = 'black')
+
+Q3 There was one store in the database which had only 11 days in one of its months (in other words, that store/month/year 
+combination only contained 11 days of transaction data). In what city and state was this store located?
+ SELECT DISTINCT t.store, s.city, s.state
+
+FROM trnsact t JOIN strinfo s
+ON t.store=s.store
+WHERE t.store IN (SELECT days_in_month.store
+FROM(SELECT EXTRACT(YEAR from saledate) AS sales_year,
+EXTRACT(MONTH from saledate) AS sales_month, store, COUNT (DISTINCT saledate) as numdays
+FROM trnsact
+GROUP BY sales_year, sales_month, store
+HAVING numdays=11) as days_in_month)
+
+Q4 Which sku number had the greatest increase in total sales revenue from November to December?
+SELECT sku,
+
+sum(case when extract(month from saledate)=11 then amt end) as November,
+sum(case when extract(month from saledate)=12 then amt end) as December,
+December-November AS sales_bump
+FROM trnsact
+WHERE stype='P'
+GROUP BY sku
+ORDER BY sales_bump DESC; 
+
+Q5 What vendor has the greatest number of distinct skus in the transaction table that do not exist in the skstinfo table? 
+(Remember that vendors are listed as distinct numbers in our data set).
+
+SELECT count(DISTINCT t.sku) as num_skus, si.vendor
+FROM trnsact t
+LEFT JOIN skstinfo s
+ON t.sku=s.sku AND t.store=s.store
+JOIN skuinfo si ON t.sku=si.sku
+WHERE s.sku IS NULL
+GROUP BY si.vendor
+ORDER BY num_skus DESC; 
+
+Q6 What is the brand of the sku with the greatest standard deviation in sprice? Only examine skus which have been part of over 
+100 transactions.
+
+SELECT DISTINCT top10skus.sku, top10skus.sprice_stdev, top10skus.num_transactions, si.style, si.color, si.size, si.packsize, si.vendor, si.brand
+FROM (SELECT TOP 1 sku, STDDEV_POP(sprice) AS sprice_stdev, count(sprice) AS num_transactions
+FROM trnsact WHERE stype='P'
+GROUP BY sku
+HAVING num_transactions > 100
+ORDER BY sprice_stdev DESC)
+AS top10skus
+JOIN skuinfo si
+ON top10skus.sku = si.sku
+ORDER BY top10skus.sprice_stdev DESC;
+
+Or without a subquery, such as this:
+
+SELECT TOP 1 t.sku, STDDEV_POP(t.sprice) AS sprice_stdev, count(t.sprice) AS num_transactions, si.style, si.color, si.size, si.packsize, si.vendor, si.brand
+FROM trnsact t JOIN skuinfo si
+ON t.sku = si.sku
+WHERE stype='P'
+GROUP BY t.sku, si.style, si.color, si.size, si.packsize, si.vendor, si.brand HAVING num_transactions > 100
+ORDER BY sprice_stdev DESC;
+
+Q7 What is the city and state of the store which had the greatest increase in average daily revenue 
+(as defined in Teradata Week 5 Exercise Guide) from November to December?
+
+SELECT s.city, s.state, t.store,
+SUM(case WHEN EXTRACT(MONTH from saledate) =11 then amt END) as November,
+SUM(case WHEN EXTRACT(MONTH from saledate) =12 then amt END) as December,
+COUNT(DISTINCT (case WHEN EXTRACT(MONTH from saledate) =11 then saledate END)) as Nov_numdays,
+COUNT(DISTINCT (case WHEN EXTRACT(MONTH from saledate) =12 then saledate END)) as Dec_numdays, (December/Dec_numdays)-(November/Nov_numdays) AS dip
+FROM trnsact t JOIN strinfo s
+ON t.store=s.store
+WHERE t.stype='P' AND t.store||EXTRACT(YEAR from t.saledate)||EXTRACT(MONTH from t.saledate) IN (SELECT store||EXTRACT(YEAR from saledate)||EXTRACT(MONTH from saledate)
+FROM trnsact
+GROUP BY store, EXTRACT(YEAR from saledate), EXTRACT(MONTH from saledate)
+HAVING COUNT(DISTINCT saledate)>= 20)
+GROUP BY s.city, s.state, t.store
+ORDER BY dip DESC;
+
+Q10 Divide stores up so that stores with msa populations between 1 and 100,000 are labeled 'very small', stores with msa
+ populations between 100,001 and 200,000 are labeled 'small', stores with msa populations between 200,001 and 500,000
+ are labeled 'med_small', stores with msa populations between 500,001 and 1,000,000 are labeled 'med_large', stores
+ with msa populations between 1,000,001 and 5,000,000 are labeled “large”, and stores with msa_population greater
+ than 5,000,000 are labeled “very large”. What is the average daily revenue (as defined in Teradata Week 5 Exercise
+ Guide) for a store in a “very large” population msa?
+
+SELECT SUM(store_rev. tot_sales)/SUM(store_rev.numdays) AS daily_avg, CASE WHEN store_rev.msa_pop BETWEEN 1 AND 100000 THEN 'very small'
+WHEN store_rev.msa_pop BETWEEN 100001 AND 200000 THEN 'small'
+WHEN store_rev.msa_pop BETWEEN 200001 AND 500000 THEN 'med_small'
+WHEN store_rev.msa_pop BETWEEN 500001 AND 1000000 THEN 'med_large'
+WHEN store_rev.msa_pop BETWEEN 1000001 AND 5000000 THEN 'large'
+WHEN store_rev.msa_pop > 5000000 then 'very large'
+END as pop_group
+FROM(SELECT COUNT (DISTINCT t.saledate) as numdays, EXTRACT(YEAR from t.saledate) as s_year, EXTRACT(MONTH from t.saledate) as s_month, t.store, sum(t.amt) AS tot_sales,
+CASE when extract(year from t.saledate) = 2005 AND extract(month from t.saledate) = 8 then 'exclude'
+END as exclude_flag, m.msa_pop
+FROM trnsact t JOIN store_msa m
+ON m.store=t.store
+WHERE t.stype = 'P' AND exclude_flag IS NULL
+GROUP BY s_year, s_month, t.store, m.msa_pop
+HAVING numdays >= 20) as store_rev
+GROUP BY pop_group
+ORDER BY daily_avg; 
+
+Q11 Which department in which store had the greatest percent increase in average daily sales revenue from November
+ to December, and what city and state was that store located in? Only examine departments whose total sales were at least
+ $1,000 in both November and December.
+
+SELECT s.store, s.city, s.state, d.deptdesc, sum(case when extract(month from saledate)=11 then amt end) as November,
+COUNT(DISTINCT (case WHEN EXTRACT(MONTH from saledate) ='11' then saledate END)) as Nov_numdays, sum(case when extract(month from saledate)=12 then amt end) as December,
+COUNT(DISTINCT (case WHEN EXTRACT(MONTH from saledate) ='12' then saledate END)) as Dec_numdays, ((December/Dec_numdays)-(November/Nov_numdays))/(November/Nov_numdays)*100 AS bump
+FROM trnsact t JOIN strinfo s
+ON t.store=s.store JOIN skuinfo si
+ON t.sku=si.sku JOIN deptinfo d
+ON si.dept=d.dept
+WHERE t.stype='P' and t.store||EXTRACT(YEAR from t.saledate)||EXTRACT(MONTH from t.saledate) IN (SELECT store||EXTRACT(YEAR from saledate)||EXTRACT(MONTH from saledate)
+FROM trnsact
+GROUP BY store, EXTRACT(YEAR from saledate), EXTRACT(MONTH from saledate)
+HAVING COUNT(DISTINCT saledate)>= 20)
+GROUP BY s.store, s.city, s.state, d.deptdesc HAVING November > 1000 AND December > 1000
+ORDER BY bump DESC; 
+
+Q12
+
+Which department within a particular store had the greatest decrease in average daily sales revenue from August to September,
+ and in what city and state was that store located?
+
+SELECT s.city, s.state, d.deptdesc, t.store,
+CASE when extract(year from t.saledate) = 2005 AND extract(month from t.saledate) = 8 then 'exclude'
+END as exclude_flag,
+SUM(case WHEN EXTRACT(MONTH from saledate) =’8’ THEN amt END) as August,
+SUM(case WHEN EXTRACT(MONTH from saledate) =’9’ THEN amt END) as September,
+COUNT(DISTINCT (case WHEN EXTRACT(MONTH from saledate) ='8' then saledate END)) as Aug_numdays, COUNT(DISTINCT (case WHEN EXTRACT(MONTH from saledate) ='9' then saledate END)) as Sept_numdays, (August/Aug_numdays)-(September/Sept_numdays) AS dip
+FROM trnsact t JOIN strinfo s
+ON t.store=s.store JOIN skuinfo si
+ON t.sku=si.sku JOIN deptinfo d
+ON si.dept=d.dept WHERE t.stype='P' AND exclude_flag IS NULL AND t.store||EXTRACT(YEAR from t.saledate)||EXTRACT(MONTH from t.saledate) IN (SELECT store||EXTRACT(YEAR from saledate)||EXTRACT(MONTH from saledate)
+FROM trnsact
+GROUP BY store, EXTRACT(YEAR from saledate), EXTRACT(MONTH from saledate)
+HAVING COUNT(DISTINCT saledate)>= 20)
+GROUP BY s.city, s.state, d.deptdesc, t.store, exclude_flag
+ORDER BY dip DESC;
+
+Q13
+
+Identify which department, in which city and state of what store, had the greatest DECREASE in the number of items sold
+ from August to September. How many fewer items did that department sell in September compared to August?
+
+SELECT s.city, s.state, d.deptdesc, t.store,
+CASE when extract(year from t.saledate) = 2005 AND extract(month from t.saledate) = 8 then 'exclude'
+END as exclude_flag,
+SUM(case WHEN EXTRACT(MONTH from saledate) = 8 then t.quantity END) as August,
+SUM(case WHEN EXTRACT(MONTH from saledate) = 9 then t.quantity END) as September, August-September AS dip
+FROM trnsact t JOIN strinfo s
+ON t.store=s.store JOIN skuinfo si
+ON t.sku=si.sku JOIN deptinfo d
+ON si.dept=d.dept
+WHERE t.stype='P' AND exclude_flag IS NULL AND
+t.store||EXTRACT(YEAR from t.saledate)||EXTRACT(MONTH from t.saledate) IN
+(SELECT store||EXTRACT(YEAR from saledate)||EXTRACT(MONTH from saledate)
+FROM trnsact
+GROUP BY store, EXTRACT(YEAR from saledate), EXTRACT(MONTH from saledate)
+HAVING COUNT(DISTINCT saledate)>= 20)
+GROUP BY s.city, s.state, d.deptdesc, t.store, exclude_flag
+ORDER BY dip DESC;
+
+Q14
+
+For each store, determine the month with the minimum average daily revenue (as defined in Teradata Week 5 Exercise Guide) . 
+For each of the twelve months of the year, count how many stores' minimum average daily revenue was in that month. During which
+ month(s) did over 100 stores have their minimum average daily revenue?
+
+SELECT CASE when max_month_table.month_num = 1 then 'January' when max_month_table.month_num = 2 then 'February' when max_month_table.month_num = 3 then 'March' when max_month_table.month_num = 4 then 'April' when max_month_table.month_num = 5 then 'May' when max_month_table.month_num = 6 then 'June' when max_month_table.month_num = 7 then 'July' when max_month_table.month_num = 8 then 'August' when max_month_table.month_num = 9 then 'September' when max_month_table.month_num = 10 then 'October' when max_month_table.month_num = 11 then 'November' when max_month_table.month_num = 12 then 'December' END, COUNT(*)
+FROM (SELECT DISTINCT extract(year from saledate) as year_num, extract(month from saledate) as month_num, CASE when extract(year from saledate) = 2005 AND extract(month from saledate) = 8 then 'exclude' END as exclude_flag, store, SUM(amt) AS tot_sales, COUNT (DISTINCT saledate) as numdays, tot_sales/numdays as dailyrev, ROW_NUMBER () over (PARTITION BY store ORDER BY dailyrev DESC) AS month_rank
+FROM trnsact
+WHERE stype='P' AND exclude_flag IS NULL AND store||EXTRACT(YEAR from saledate)||EXTRACT(MONTH from saledate) IN (SELECT store||EXTRACT(YEAR from saledate)||EXTRACT(MONTH from saledate)
+FROM trnsact
+GROUP BY store, EXTRACT(YEAR from saledate), EXTRACT(MONTH from saledate)
+HAVING COUNT(DISTINCT saledate)>= 20)
+GROUP BY store, month_num, year_num
+HAVING numdays>=20 QUALIFY month_rank=12) as max_month_table
+GROUP BY max_month_table.month_num
+ORDER BY max_month_table.month_num;
+
+Q15 Write a query that determines the month in which each store had its maximum number of sku units returned. During which month
+ did the greatest number of stores have their maximum number of sku units returned?
+
+SELECT CASE when max_month_table.month_num = 1 then 'January' when max_month_table.month_num = 2 then 'February' when max_month_table.month_num = 3 then 'March' when max_month_table.month_num = 4 then 'April' when max_month_table.month_num = 5 then 'May' when max_month_table.month_num = 6 then 'June' when max_month_table.month_num = 7 then 'July' when max_month_table.month_num = 8 then 'August' when max_month_table.month_num = 9 then 'September' when max_month_table.month_num = 10 then 'October' when max_month_table.month_num = 11 then 'November' when max_month_table.month_num = 12 then 'December' END, COUNT(*)
+FROM (SELECT DISTINCT extract(year from saledate) as year_num, extract(month from saledate) as month_num, CASE when extract(year from saledate) = 2004 AND extract(month from saledate) = 8 then 'exclude' END as exclude_flag, store, SUM(quantity) AS tot_returns, ROW_NUMBER () over (PARTITION BY store ORDER BY tot_returns DESC) AS month_rank
+FROM trnsact
+WHERE stype='R' AND exclude_flag IS NULL AND store||EXTRACT(YEAR from saledate)||EXTRACT(MONTH from saledate) IN (SELECT store||EXTRACT(YEAR from saledate)||EXTRACT(MONTH from saledate)
+FROM trnsact
+GROUP BY store, EXTRACT(YEAR from saledate), EXTRACT(MONTH from saledate)
+HAVING COUNT(DISTINCT saledate)>= 20)
+GROUP BY store, month_num, year_num QUALIFY month_rank=1) as max_month_table
+GROUP BY max_month_table.month_num
+ORDER BY max_month_table.month_num
+
+
